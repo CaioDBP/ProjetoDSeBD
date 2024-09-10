@@ -1,6 +1,9 @@
+from flask import Flask, request, jsonify
 import mysql.connector
 from datetime import datetime
 from tabulate import tabulate
+
+app = Flask(__name__)
 
 # Configurações do banco de dados
 host = '127.0.0.1'
@@ -16,19 +19,18 @@ cnx = mysql.connector.connect(
 
 # Criar um cursor
 cursor = cnx.cursor()
-def cadastrar_cliente():
-    print("Cadastro de Cliente")
-    print("--------------------")
 
-    # Solicitar os dados do usuário
-    cpf = input("Digite o CPF: ")
-    nome = input("Digite o nome: ")
-    senha = input("Digite a senha: ")
-    sexo = input("Digite o sexo: ")
-    idade = input("Digite a idade: ")
-    endereco = input("Digite o endereço: ")
-    email = input("Digite o email: ")
-    telefone = input("Digite o telefone: ")
+@app.route('/cadastrar_cliente', methods=['POST'])
+def cadastrar_cliente():
+    dados = request.get_json()
+    cpf = dados['cpf']
+    nome = dados['nome']
+    senha = dados['senha']
+    sexo = dados['sexo']
+    idade = dados['idade']
+    endereco = dados['endereco']
+    email = dados['email']
+    telefone = dados['telefone']
 
     # Criar a query de inserção
     query = """
@@ -88,38 +90,37 @@ def cadastrar_cliente():
     # Commitar as alterações
     cnx.commit()
 
-    # Obter os dados do cliente cadastrado
-    cursor.execute("SELECT * FROM Clientes WHERE ID_cliente = %s", (id_cliente,))
+    # Retornar mensagem de sucesso
+    return jsonify({'mensagem': 'Cliente cadastrado com sucesso!'})
+
+@app.route('/login_cliente', methods=['POST'])
+def login_cliente():
+    dados = request.get_json()
+    email = dados['email']
+    senha = dados['senha']
+
+    # Criar a query de seleção
+    query = "SELECT * FROM Clientes WHERE Email = %s AND Senha = %s"
+    cursor.execute(query, (email, senha))
+
+    # Obter os dados do cliente
     cliente = cursor.fetchone()
 
-    # Imprimir os dados do cliente cadastrado
-    print("Cliente cadastrado com sucesso!")
+    if cliente:
+        # Retornar mensagem de sucesso
+        return jsonify({'mensagem': 'Login realizado com sucesso!'})
+    else:
+        # Retornar mensagem de erro
+        return jsonify({'mensagem': 'CPF ou senha inválidos. Tente novamente.'}), 401
 
-    # Imprimir a tabela com o novo usuário cadastrado
-    print("\nTabela de Clientes:")
+@app.route('/clientes', methods=['GET'])
+def get_clientes():
+    # Obter os dados dos clientes
     cursor.execute("SELECT * FROM Clientes")
     clientes = cursor.fetchall()
     headers = ["ID", "ID Filial", "CPF", "Nome", "Senha", "Sexo", "Idade", "Endereço", "Email", "Telefone", "Data de Cadastro"]
-    print(tabulate(clientes, headers, tablefmt="grid"))
+    tabela = tabulate(clientes, headers, tablefmt="grid")
+    return jsonify({'tabela': tabela})
 
-def main():
-    while True:
-        print("Menu")
-        print("-----")
-        print("1. Cadastrar cliente")
-        print("2. Sair")
-        opcao = input("Digite a opção: ")
-
-        if opcao == "1":
-            cadastrar_cliente()
-        elif opcao == "2":
-            break
-        else:
-            print("Opção inválida. Tente novamente.")
-
-    # Fechar o cursor e a conexão
-    cursor.close()
-    cnx.close()
-
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    app.run(debug=True)
